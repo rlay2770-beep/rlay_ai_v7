@@ -115,7 +115,7 @@
     </div>
 
     <script>
-        // 🔑 2. FIREBASE CONFIGURATION (အစ်ကို့ Firebase Key အမှန်ကို ဒီနေရာမှာ ထည့်နိုင်ပါသည်)
+        // 🔑 2. FIREBASE CONFIGURATION
         const firebaseConfig = {
             apiKey: "AIzaSyB04ep1qXo2p9ZHzjtzO9f7ewrTE9Zhjo0",
             authDomain: "quick-tradein-app.firebaseapp.com",
@@ -160,10 +160,11 @@ Language Rules:
             saveToFirestore("user", userText);
 
             try {
-                // 🚀 GET Method သုံး၍ Pollinations AI သို့ တိုက်ရိုက် လှမ်းခေါ်ခြင်း (CORS Block မခံရပါ)
+                // 🚀 CORS Proxy ခံထားသဖြင့် Browser Security Block မဖြစ်ဘဲ အလုပ်လုပ်ပါမည်
                 const promptUrl = `https://text.pollinations.ai/${encodeURIComponent(userText)}?system=${encodeURIComponent(SYSTEM_PROMPT)}&model=openai`;
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(promptUrl)}`;
 
-                const response = await fetch(promptUrl);
+                const response = await fetch(proxyUrl);
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 

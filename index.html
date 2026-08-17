@@ -115,7 +115,7 @@
     </div>
 
     <script>
-        // 🔑 2. FIREBASE CONFIGURATION
+        // 🔑 1. FIREBASE CONFIGURATION
         const firebaseConfig = {
             apiKey: "AIzaSyB04ep1qXo2p9ZHzjtzO9f7ewrTE9Zhjo0",
             authDomain: "quick-tradein-app.firebaseapp.com",
@@ -131,6 +131,9 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // 🔑 2. POLLINATIONS ANONYMOUS KEY
+        const POLLINATIONS_API_KEY = "pk_anonymous";
+
         // 🧠 SYSTEM PROMPT
         const SYSTEM_PROMPT = `Your name is RLay AI. You are an intelligent bilingual AI assistant and dictionary created for the project "RLay AI Dictionary & Assistant".
 Identity Rules:
@@ -144,6 +147,7 @@ Language Rules:
 
         let chatHistory = [];
 
+        // 🚀 POST Method သုံးထားသော sendMessage Function
         async function sendMessage() {
             const inputField = document.getElementById("user-input");
             const userText = inputField.value.trim();
@@ -160,15 +164,44 @@ Language Rules:
             saveToFirestore("user", userText);
 
             try {
-                // 🚀 CORS Proxy ခံထားသဖြင့် Browser Security Block မဖြစ်ဘဲ အလုပ်လုပ်ပါမည်
-                const promptUrl = `https://text.pollinations.ai/${encodeURIComponent(userText)}?system=${encodeURIComponent(SYSTEM_PROMPT)}&model=openai`;
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(promptUrl)}`;
+                // Pollinations Open-AI Style Endpoint သို့ POST Request ပို့ခြင်း
+                const apiEndpoint = "https://text.pollinations.ai/";
 
-                const response = await fetch(proxyUrl);
+                const messagesPayload = [
+                    { role: "system", content: SYSTEM_PROMPT },
+                    ...chatHistory
+                ];
 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const response = await fetch(apiEndpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${POLLINATIONS_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        messages: messagesPayload,
+                        model: "openai"
+                    })
+                });
 
-                const botReply = await response.text();
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Pollinations API က Text တိုက်ရိုက် သို့မဟုတ် JSON Response ပြန်ပေးမှုကို စစ်ဆေးခြင်း
+                const responseText = await response.text();
+                let botReply = "";
+
+                try {
+                    const data = JSON.parse(responseText);
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        botReply = data.choices[0].message.content;
+                    } else {
+                        botReply = responseText;
+                    }
+                } catch (e) {
+                    botReply = responseText;
+                }
 
                 appendMessage(botReply, "bot-message");
                 chatHistory.push({ role: "assistant", content: botReply });
@@ -178,7 +211,7 @@ Language Rules:
 
             } catch (error) {
                 console.error("AI Error:", error);
-                appendMessage("တောင်းပန်ပါတယ်ခင်ဗျာ၊ လိုင်းခေတ္တ မကောင်းပါသဖြင့် ခဏကြာမှ ပြန်လည် စမ်းသပ်ပေးပါခင်ဗျာ။", "bot-message");
+                appendMessage("တောင်းပန်ပါတယ်ခင်ဗျာ၊ လိုင်းခေတ္တ မကောင်းပါသဖြင့် သို့မဟုတ် ပြန်လည် စမ်းသပ်ပေးပါခင်ဗျာ။", "bot-message");
             }
 
             document.getElementById("send-btn").disabled = false;
@@ -214,4 +247,5 @@ Language Rules:
         }
     </script>
 </body>
-</html>
+    </html>
+    

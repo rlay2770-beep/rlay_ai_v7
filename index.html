@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RLay AI Dictionary & Assistant</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: #4f46e5;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 15px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+        }
+        .user-message {
+            align-self: flex-end;
+            background-color: #4f46e5;
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+        .bot-message {
+            align-self: flex-start;
+            background-color: white;
+            color: #333;
+            border-bottom-left-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .bot-message pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 8px;
+            font-family: monospace;
+        }
+        #input-container {
+            display: flex;
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #ddd;
+        }
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 25px;
+            outline: none;
+            font-size: 1rem;
+        }
+        #send-btn {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 0 20px;
+            margin-left: 8px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #send-btn:disabled {
+            background-color: #a5b4fc;
+        }
+    </style>
+
+    <!-- 1. Firebase SDK များကို ထည့်သွင်းခြင်း -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <header>
+        RLay AI Dictionary & Assistant
+    </header>
+
+    <div id="chat-container">
+        <div class="message bot-message">
+            မင်္ဂလာပါ! ကျွန်တော်က RLay AI ဖြစ်ပါတယ်။ ဘာများ ကူညီပေးရမလဲခင်ဗျာ။
+        </div>
+    </div>
+
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="စကားပြောရန် သို့မဟုတ် မေးခွန်းရိုက်ထည့်ပါ..." onkeydown="if(event.key === 'Enter') sendMessage()">
+        <button id="send-btn" onclick="sendMessage()">ပို့မည်</button>
+    </div>
+
+    <script>
+        // 🔑 2. FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyB04ep1qXo2p9ZHzjtzO9f7ewrTE9Zhjo0",
+            authDomain: "quick-tradein-app.firebaseapp.com",
+            databaseURL: "https://quick-tradein-app-default-rtdb.firebaseio.com",
+            projectId: "quick-tradein-app",
+            storageBucket: "quick-tradein-app.firebasestorage.app",
+            messagingSenderId: "1045062546373",
+            appId: "1:1045062546373:web:ef23268eaa76330daa91ac",
+            measurementId: "G-PYWJ781099"
+        };
+
+        // Firebase စတင်ခြင်း
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 🧠 SYSTEM PROMPT
+        const SYSTEM_PROMPT = `Your name is RLay AI. You are an intelligent bilingual AI assistant and dictionary created for the project "RLay AI Dictionary & Assistant".
+Identity Rules:
+- If asked about your name, reply that your name is RLay AI.
+- If asked about who created you or your project name, respond that you are part of "RLay AI Dictionary & Assistant".
+Language Rules:
+1. Myanmar Language (Burmese):
+   - Respond in clear, natural, grammatically correct Standard Myanmar language.
+   - Do NOT use word-for-word literal translation from English. Use natural conversational Burmese.
+2. English Language:
+   - Respond in professional, articulate, and fluent English.
+3. Keep answers clear, context-aware, and helpful.`;
+
+        let chatHistory = [];
+
+        async function sendMessage() {
+            const inputField = document.getElementById("user-input");
+            const userText = inputField.value.trim();
+            if (!userText) return;
+
+            // UI ပေါ်တွင် ပြသခြင်း
+            appendMessage(userText, "user-message");
+            inputField.value = "";
+            document.getElementById("send-btn").disabled = true;
+
+            chatHistory.push({ role: "user", content: userText });
+
+            // 🔥 Firestore ထဲသို့ User မက်ဆေ့ခ်ျ သိမ်းဆည်းခြင်း
+            saveToFirestore("user", userText);
+
+            const apiMessages = [
+                { role: "system", content: SYSTEM_PROMPT },
+                ...chatHistory
+            ];
+
+            try {
+                // 🚀 API Key လုံးဝ မလိုသော Free Pollinations AI Endpoint သို့ ပို့ခြင်း
+                const response = await fetch("https://text.pollinations.ai/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        messages: apiMessages,
+                        model: "openai"
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const botReply = await response.text();
+
+                appendMessage(botReply, "bot-message");
+                chatHistory.push({ role: "assistant", content: botReply });
+
+                // 🔥 Firestore ထဲသို့ AI မက်ဆေ့ခ်ျ သိမ်းဆည်းခြင်း
+                saveToFirestore("assistant", botReply);
+
+            } catch (error) {
+                console.error("AI Error:", error);
+                appendMessage("တောင်းပန်ပါတယ်ခင်ဗျာ၊ လိုင်းခေတ္တ မကောင်းပါသဖြင့် ခဏကြာမှ ပြန်လည် စမ်းသပ်ပေးပါခင်ဗျာ။", "bot-message");
+            }
+
+            document.getElementById("send-btn").disabled = false;
+        }
+
+        // 🔥 Firestore ထဲ စာသွားသိမ်းသည့် Function
+        function saveToFirestore(sender, text) {
+            db.collection("chat_history").add({
+                sender: sender,
+                message: text,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                console.log("Firestore ထဲ သိမ်းဆည်းပြီးပါပြီ");
+            }).catch((error) => {
+                console.error("Firestore Error: ", error);
+            });
+        }
+
+        function appendMessage(text, className) {
+            const chatContainer = document.getElementById("chat-container");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${className}`;
+            
+            if (text.includes("```")) {
+                const formattedText = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+                msgDiv.innerHTML = formattedText;
+            } else {
+                msgDiv.innerText = text;
+            }
+
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+  </html>
+  

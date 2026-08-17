@@ -115,7 +115,7 @@
     </div>
 
     <script>
-        // 🔑 2. FIREBASE CONFIGURATION
+        // 🔑 2. FIREBASE CONFIGURATION (အစ်ကို့ Firebase Key အမှန်ကို ဒီနေရာမှာ ထည့်နိုင်ပါသည်)
         const firebaseConfig = {
             apiKey: "AIzaSyB04ep1qXo2p9ZHzjtzO9f7ewrTE9Zhjo0",
             authDomain: "quick-tradein-app.firebaseapp.com",
@@ -139,10 +139,8 @@ Identity Rules:
 Language Rules:
 1. Myanmar Language (Burmese):
    - Respond in clear, natural, grammatically correct Standard Myanmar language.
-   - Do NOT use word-for-word literal translation from English. Use natural conversational Burmese.
 2. English Language:
-   - Respond in professional, articulate, and fluent English.
-3. Keep answers clear, context-aware, and helpful.`;
+   - Respond in professional, articulate, and fluent English.`;
 
         let chatHistory = [];
 
@@ -161,23 +159,11 @@ Language Rules:
             // 🔥 Firestore ထဲသို့ User မက်ဆေ့ခ်ျ သိမ်းဆည်းခြင်း
             saveToFirestore("user", userText);
 
-            const apiMessages = [
-                { role: "system", content: SYSTEM_PROMPT },
-                ...chatHistory
-            ];
-
             try {
-                // 🚀 API Key လုံးဝ မလိုသော Free Pollinations AI Endpoint သို့ ပို့ခြင်း
-                const response = await fetch("https://text.pollinations.ai/", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        messages: apiMessages,
-                        model: "openai"
-                    })
-                });
+                // 🚀 GET Method သုံး၍ Pollinations AI သို့ တိုက်ရိုက် လှမ်းခေါ်ခြင်း (CORS Block မခံရပါ)
+                const promptUrl = `https://text.pollinations.ai/${encodeURIComponent(userText)}?system=${encodeURIComponent(SYSTEM_PROMPT)}&model=openai`;
+
+                const response = await fetch(promptUrl);
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
@@ -227,5 +213,4 @@ Language Rules:
         }
     </script>
 </body>
-  </html>
-  
+</html>
